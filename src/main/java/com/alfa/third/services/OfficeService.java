@@ -2,10 +2,23 @@ package com.alfa.third.services;
 
 import com.alfa.third.dao.OfficeRepository;
 import com.alfa.third.dao.entities.Office;
+import com.alfa.third.dao.entities.QueueLog;
 import com.alfa.third.dto.OfficeDTO;
 import com.alfa.third.dto.OfficeDistanceDTO;
+import com.alfa.third.dto.OfficePredictDTO;
 import com.alfa.third.exceptions.NoOfficeFound;
+import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
+import org.apache.commons.math3.stat.descriptive.rank.Median;
 import org.springframework.stereotype.Service;
+
+import javax.transaction.Transactional;
+import java.beans.Transient;
+import java.util.Calendar;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import static java.util.Calendar.*;
 
 @Service
 public class OfficeService {
@@ -57,5 +70,37 @@ public class OfficeService {
                 min.getLat(),
                 min.getAddress(),
                 (int) Math.round(diff));
+    }
+
+    @Transactional
+    public OfficePredictDTO getOfficePredict(int office_id, int dayOfWeek, int hourOfDay) {
+        Office office = officeRepository.findById(office_id).orElseThrow(() -> new NoOfficeFound("branch not found"));
+        List<Double> logs = office.getLogs().stream()
+                .filter(data -> {
+                    Calendar c = Calendar.getInstance();
+                    c.setTime(data.getData());
+                    int day = c.get(Calendar.DAY_OF_WEEK);
+                    day = day == SUNDAY ? 7 : day - 1;
+                    if (dayOfWeek == day) {
+                        c.setTime(data.getStartWait());
+                        int hour = c.get(Calendar.HOUR_OF_DAY);
+                        return hour == hourOfDay;
+                    }
+                    return false;
+                })
+                .map(data -> (data.getEndWait().getTime() - data.getStartWait().getTime()) / 1000.0)
+                .collect(Collectors.toList());
+        double[] vals = new double[logs.size()];
+        for (int i = 0; i < logs.size(); i++) {
+            vals[i] = logs.get(i);
+        }
+        double median = new Median().evaluate(vals);
+        return new OfficePredictDTO(office.getId(),
+                office.getTitle(),
+                office.getLon(),
+                office.getLat(),
+                office.getAddress(),
+                dayOfWeek, hourOfDay, (int) Math.round(median));
+
     }
 }

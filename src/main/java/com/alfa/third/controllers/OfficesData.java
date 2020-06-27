@@ -3,6 +3,7 @@ package com.alfa.third.controllers;
 import com.alfa.third.dao.entities.Office;
 import com.alfa.third.dto.OfficeDTO;
 import com.alfa.third.dto.OfficeDistanceDTO;
+import com.alfa.third.dto.OfficePredictDTO;
 import com.alfa.third.exceptions.NoOfficeFound;
 import com.alfa.third.services.OfficeService;
 import org.springframework.http.HttpStatus;
@@ -35,5 +36,12 @@ public class OfficesData {
                                                @RequestParam() double lon) {
         return officeService.getOfficeByLonLat(lon, lat);
 
+    }
+
+    @GetMapping("/branches/{id}/predict")
+    public OfficePredictDTO getOfficePredict(@RequestParam() int dayOfWeek,
+                                             @RequestParam() int hourOfDay,
+                                             @PathVariable int id) {
+        return officeService.getOfficePredict(id, dayOfWeek, hourOfDay);
     }
 }
